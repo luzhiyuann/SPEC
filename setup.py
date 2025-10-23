@@ -39,7 +39,6 @@ d['cmake_args'].append("-DCMAKE_C_FLAGS=-I"+numpy.get_include())
 setup(
     name="spec",
     version="0.0.3",
-    #license="MIT",
     packages=['spec'],
     package_dir={'': 'Utilities/python_wrapper'},
     #py_modules=[splitext(basename(path))[0] for path in glob('src/vmec/*.py')],
