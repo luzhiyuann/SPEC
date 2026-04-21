@@ -77,6 +77,9 @@ set(f90wrap_output_files ${CMAKE_CURRENT_BINARY_DIR}/f90wrap_global_m_fpp.f90
                          ${CMAKE_CURRENT_BINARY_DIR}/f90wrap_toplevel.f90
 )
 
+set(F2PY_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/f2py_build)
+file(MAKE_DIRECTORY ${F2PY_BUILD_DIR})
+
 set(kind_map_file ${CMAKE_CURRENT_SOURCE_DIR}/kind_map)
 set(python_mod_name spec_f90wrapped)
 set(python_mod_file ${CMAKE_CURRENT_BINARY_DIR}/${python_mod_name}.py)
@@ -113,7 +116,7 @@ add_custom_command(
     OUTPUT ${generated_module_file}
     COMMAND ${F2PY_EXECUTABLE} 
         -m ${f2py_module_name} 
-        --build-dir ${CMAKE_CURRENT_BINARY_DIR} 
+        --build-dir ${F2PY_BUILD_DIR}
         --f90exec=${CMAKE_Fortran_COMPILER}
         --f77exec=${CMAKE_Fortran_COMPILER}
         --f90flags="-fopenmp"
