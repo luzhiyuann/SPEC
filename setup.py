@@ -42,7 +42,7 @@ setup(
     packages=['spec'],
     package_dir={'': 'Utilities/python_wrapper'},
     #py_modules=[splitext(basename(path))[0] for path in glob('src/vmec/*.py')],
-    install_requires=['f90wrap', 'scikit-build'],
+    install_requires=['f90wrap', 'numpy', 'scikit-build'],
     classifiers=[
         "Development Status :: 1 - Alpha",
         "Intended Audience :: Nuclear Fusion Community",

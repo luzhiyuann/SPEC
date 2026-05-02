@@ -108,13 +108,79 @@ message(STATUS "f2py_module_name: ${f2py_module_name}")
 message(STATUS "generated_module_name: ${generated_module_file}")
 
 include_directories("${NumPy_INCLUDE_DIRS}" "${F2PY_INCLUDE_DIRS}" "${CMAKE_CURRENT_BINARY_DIR}")
+
+# NumPy's Meson f2py backend links path-like libraries before wrapper objects.
+# Convert them to -L/-l arguments so static libraries are resolved in link-arg order.
+function(append_f2py_link_arg outvar link_arg)
+    set(current_args "${${outvar}}")
+
+    if("${link_arg}" MATCHES "^-L.+")
+        list(APPEND current_args "${link_arg}")
+    elseif("${link_arg}" MATCHES "^-l(.+)")
+        set(lib_name "${CMAKE_MATCH_1}")
+        # f2py uses library names as Meson variable names; hyphens are invalid there.
+        if("${lib_name}" MATCHES "^[A-Za-z_][A-Za-z0-9_.]*$")
+            list(APPEND current_args "${link_arg}")
+        endif()
+    elseif(IS_ABSOLUTE "${link_arg}" AND EXISTS "${link_arg}")
+        get_filename_component(lib_dir "${link_arg}" DIRECTORY)
+        get_filename_component(lib_name "${link_arg}" NAME)
+
+        if("${lib_name}" MATCHES "^lib(.+)\\.(a|so|dylib)(\\..*)?$")
+            list(APPEND current_args "-L${lib_dir}" "-l${CMAKE_MATCH_1}")
+        else()
+            list(APPEND current_args "${link_arg}")
+        endif()
+    endif()
+
+    set(${outvar} "${current_args}" PARENT_SCOPE)
+endfunction()
+
+set(F2PY_LINK_ARGS)
+append_f2py_link_arg(F2PY_LINK_ARGS "${CMAKE_BINARY_DIR}/build/lib/libspec.a")
+foreach(link_lib ${SPEC_LINK_LIB})
+    append_f2py_link_arg(F2PY_LINK_ARGS "${link_lib}")
+endforeach()
+
+if(MPI_Fortran_FOUND)
+    separate_arguments(MPI_Fortran_LINK_FLAGS_LIST UNIX_COMMAND "${MPI_Fortran_LINK_FLAGS}")
+    foreach(link_arg ${MPI_Fortran_LINK_FLAGS_LIST} ${MPI_Fortran_LIBRARIES})
+        append_f2py_link_arg(F2PY_LINK_ARGS "${link_arg}")
+    endforeach()
+elseif(CMAKE_Fortran_COMPILER MATCHES "(^|/)mpi")
+    foreach(show_arg --showme:link -show --show)
+        if(NOT MPI_Fortran_WRAPPER_LINK_FLAGS)
+            execute_process(
+                COMMAND ${CMAKE_Fortran_COMPILER} ${show_arg}
+                RESULT_VARIABLE MPI_Fortran_WRAPPER_RESULT
+                OUTPUT_VARIABLE MPI_Fortran_WRAPPER_LINK_FLAGS
+                ERROR_QUIET
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+            )
+            if(NOT MPI_Fortran_WRAPPER_RESULT EQUAL 0)
+                unset(MPI_Fortran_WRAPPER_LINK_FLAGS)
+            endif()
+        endif()
+    endforeach()
+    separate_arguments(MPI_Fortran_WRAPPER_LINK_FLAGS_LIST UNIX_COMMAND "${MPI_Fortran_WRAPPER_LINK_FLAGS}")
+    foreach(link_arg ${MPI_Fortran_WRAPPER_LINK_FLAGS_LIST})
+        append_f2py_link_arg(F2PY_LINK_ARGS "${link_arg}")
+    endforeach()
+endif()
+
+list(REMOVE_DUPLICATES F2PY_LINK_ARGS)
+message(STATUS "f2py link arguments: ${F2PY_LINK_ARGS}")
+
 add_custom_target(${f2py_module_name} ALL
   DEPENDS ${generated_module_file} spec ${f90wrap_output_files}
 )
 
 add_custom_command(
     OUTPUT ${generated_module_file}
-    COMMAND ${F2PY_EXECUTABLE} 
+    COMMAND ${CMAKE_COMMAND} -E env
+        FC=${CMAKE_Fortran_COMPILER}
+        CC=${CMAKE_C_COMPILER}
+        ${F2PY_EXECUTABLE}
         -m ${f2py_module_name} 
         --build-dir ${F2PY_BUILD_DIR}
         --f90exec=${CMAKE_Fortran_COMPILER}
@@ -127,8 +193,7 @@ add_custom_command(
         -I${CMAKE_BINARY_DIR}/build/modules/spec_modules
         -I${HDF5_Fortran_INCLUDE_DIRS}
 	--verbose
-        ${CMAKE_BINARY_DIR}/build/lib/libspec.a  
-        ${SPEC_LINK_LIB}
+        ${F2PY_LINK_ARGS}
     #IMPLICIT_DEPENDS Fortran ${f90wrap_output_files}
     DEPENDS spec ${f90wrap_output_files}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -151,5 +216,3 @@ install(FILES ${python_mod_file} ${generated_module_file} #${CMAKE_CURRENT_SOURC
 #        LIBRARY DESTINATION ${CMAKE_INSTALL_DIR}/.
 #        RUNTIME DESTINATION bin
 #)
-
-

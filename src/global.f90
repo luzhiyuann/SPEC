@@ -956,9 +956,9 @@ end subroutine
 
 !-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!
 
-pure function get_hidden(ext) result(hidden_ext)
+pure function get_hidden(input_ext) result(hidden_ext)
   implicit none
-  CHARACTER(len=1000), intent(in) :: ext
+  CHARACTER(len=1000), intent(in) :: input_ext
   ! ext with a "." prefix added to the basename "path/.G3V01L1Fi.001" for an input file path/G3V01L1Fi.001.sp
   CHARACTER(LEN=1000)  :: hidden_ext 
   INTEGER :: basename_start_index
@@ -966,12 +966,12 @@ pure function get_hidden(ext) result(hidden_ext)
   ! Prepare the "hidden" ext filepath that has a "." prefix.
   ! Split ext into directory path and basename using INDEX function, then concatenate them again with a "." inbetween
 #ifdef _WIN32
-    basename_start_index = INDEX(ext, '\', .TRUE.)
+    basename_start_index = INDEX(input_ext, '\', .TRUE.)
 #else
-    basename_start_index = INDEX(ext, '/', .TRUE.)
+    basename_start_index = INDEX(input_ext, '/', .TRUE.)
 #endif
     ! folder + . + filename  
-    hidden_ext = trim(ext(1:basename_start_index))//"."//trim(ext(basename_start_index+1:))
+    hidden_ext = trim(input_ext(1:basename_start_index))//"."//trim(input_ext(basename_start_index+1:))
 end function get_hidden
 
 !-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!
